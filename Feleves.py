@@ -2,6 +2,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton, BooleanVar, Label
 
+# Global variable to store analysis results
+analysis_results = {}
+
 # Load and clean data dynamically
 def adat_beolvasas():
     """
@@ -95,6 +98,8 @@ def perform_analysis(adatok, column_vars, stats_tools):
     """
     Perform the analysis based on selected options.
     """
+    global analysis_results
+    analysis_results = {}
     # Filter columns
     selected_columns = [col for col, var in column_vars.items() if var.get()]
     data_to_analyze = adatok[selected_columns]
@@ -105,27 +110,43 @@ def perform_analysis(adatok, column_vars, stats_tools):
     numeric_data = data_to_analyze.select_dtypes(include=["number"])
     if not numeric_data.empty:
         results += "Numerikus adatok statisztikai eredményei:\n\n"
+        analysis_results['numeric'] = {}
         if stats_tools["Átlag (Mean)"].get():
-            results += f"Átlag:\n{numeric_data.mean()}\n\n"
+            mean_result = numeric_data.mean()
+            results += f"Átlag:\n{mean_result}\n\n"
+            analysis_results['numeric']['mean'] = mean_result
         if stats_tools["Medián (Median)"].get():
-            results += f"Medián:\n{numeric_data.median()}\n\n"
+            median_result = numeric_data.median()
+            results += f"Medián:\n{median_result}\n\n"
+            analysis_results['numeric']['median'] = median_result
         if stats_tools["Szórás (Standard Deviation)"].get():
-            results += f"Szórás:\n{numeric_data.std()}\n\n"
+            std_result = numeric_data.std()
+            results += f"Szórás:\n{std_result}\n\n"
+            analysis_results['numeric']['std'] = std_result
         if stats_tools["Minimum"].get():
-            results += f"Minimum:\n{numeric_data.min()}\n\n"
+            min_result = numeric_data.min()
+            results += f"Minimum:\n{min_result}\n\n"
+            analysis_results['numeric']['min'] = min_result
         if stats_tools["Maximum"].get():
-            results += f"Maximum:\n{numeric_data.max()}\n\n"
+            max_result = numeric_data.max()
+            results += f"Maximum:\n{max_result}\n\n"
+            analysis_results['numeric']['max'] = max_result
 
     # Categorical analysis
     categorical_data = data_to_analyze.select_dtypes(include=["object", "category"])
     if not categorical_data.empty:
         results += "Kategorikus adatok statisztikai eredményei:\n\n"
+        analysis_results['categorical'] = {}
         if stats_tools["Módusz (Mode)"].get():
             mode_result = categorical_data.mode().iloc[0]
             results += f"Módusz:\n{mode_result}\n\n"
+            analysis_results['categorical']['mode'] = mode_result
         if stats_tools["Gyakoriság (Value Counts)"].get():
+            analysis_results['categorical']['value_counts'] = {}
             for col in categorical_data.columns:
-                results += f"Gyakoriság - {col}:\n{categorical_data[col].value_counts()}\n\n"
+                value_counts = categorical_data[col].value_counts()
+                results += f"Gyakoriság - {col}:\n{value_counts}\n\n"
+                analysis_results['categorical']['value_counts'][col] = value_counts
 
     if results:
         megjelenit_ablak("Elemzés Eredményei", results)
@@ -160,7 +181,7 @@ def select_visualization_options(adatok):
     # Create the Toplevel window
     visualization_window = Toplevel()
     visualization_window.title("Visualization Options")
-    visualization_window.geometry("600x600")  # Increased height
+    visualization_window.geometry("600x700")  # Increased height
 
     # Ensure window creation
     visualization_window.update_idletasks()
@@ -179,7 +200,8 @@ def select_visualization_options(adatok):
     visualization_types = {
         "Hisztogram (Numeric)": BooleanVar(value=True),
         "Oszlopdiagram (Categorical)": BooleanVar(value=True),
-        "Kördiagram (Pie Chart - Categorical)": BooleanVar(value=True),  # Added pie chart option
+        "Kördiagram (Pie Chart - Categorical)": BooleanVar(value=True),
+        "Statisztikák Diagramja (Statistics Charts)": BooleanVar(value=False),  # Added option
     }
     for vis_type, var in visualization_types.items():
         Checkbutton(visualization_window, text=vis_type, variable=var).pack(anchor='w')
@@ -201,6 +223,7 @@ def perform_visualization(adatok, column_vars, visualization_types):
     """
     Perform visualization based on selected options.
     """
+    global analysis_results
     # Filter selected columns
     selected_columns = [col for col, var in column_vars.items() if var.get()]
     data_to_visualize = adatok[selected_columns]
@@ -243,6 +266,31 @@ def perform_visualization(adatok, column_vars, visualization_types):
                     megjelenit_ablak("Figyelmeztetés", f"Túl sok kategória a kördiagramhoz: {col}")
         else:
             megjelenit_ablak("Figyelmeztetés", "Nincs kategorikus adat a kördiagramokhoz.")
+
+    if visualization_types["Statisztikák Diagramja (Statistics Charts)"].get():
+        # Visualize numerical statistics
+        if 'numeric' in analysis_results:
+            numeric_stats = analysis_results['numeric']
+            for stat_name, stat_values in numeric_stats.items():
+                stat_values.plot(kind='bar', title=f"Numerikus {stat_name.capitalize()}", figsize=(10,6))
+                plt.ylabel(stat_name.capitalize())
+                plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "Nincs numerikus statisztikai adat a megjelenítéshez.")
+
+        # Visualize categorical statistics
+        if 'categorical' in analysis_results and 'value_counts' in analysis_results['categorical']:
+            value_counts_dict = analysis_results['categorical']['value_counts']
+            for col, counts in value_counts_dict.items():
+                if counts.nunique() < 20:
+                    counts.plot(kind='bar', title=f"Gyakoriság - {col}", figsize=(10,6))
+                    plt.xlabel(col)
+                    plt.ylabel("Előfordulások száma")
+                    plt.show()
+                else:
+                    megjelenit_ablak("Figyelmeztetés", f"Túl sok kategória a diagramhoz: {col}")
+        else:
+            megjelenit_ablak("Figyelmeztetés", "Nincs kategorikus statisztikai adat a megjelenítéshez.")
 
 # Main program
 if __name__ == "__main__":
