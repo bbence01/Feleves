@@ -24,8 +24,12 @@ def adat_beolvasas():
             # Load CSV and infer header row
             adat = pd.read_csv(fajl_nev, header=None)
         elif fajl_nev.endswith((".xls", ".xlsx")):
-            # Load Excel and infer header row
-            adat = pd.read_excel(fajl_nev, header=None)
+            # Check for Excel dependencies
+            try:
+                adat = pd.read_excel(fajl_nev, header=None, engine="openpyxl" if fajl_nev.endswith(".xlsx") else "xlrd")
+            except ImportError as e:
+                megjelenit_ablak("Hiba", f"A szükséges könyvtárak hiányoznak: {e}")
+                return None
         else:
             raise ValueError("Nem támogatott fájlformátum!")
 
@@ -39,6 +43,11 @@ def adat_beolvasas():
             adat[col] = pd.to_numeric(adat[col], errors="ignore")
 
         return adat
+
+    except Exception as e:
+        megjelenit_ablak("Hiba", f"Hiba történt az állomány beolvasása során: {e}")
+        return None
+
 
     except Exception as e:
         megjelenit_ablak("Hiba", f"Hiba történt az állomány beolvasása során: {e}")
