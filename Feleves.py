@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns  # Added seaborn for enhanced visualizations
 from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton, BooleanVar, Label
 
 # Global variable to store analysis results
@@ -71,8 +72,8 @@ def select_analysis_options(adatok):
         "Szórás (Standard Deviation)": BooleanVar(value=True),
         "Minimum": BooleanVar(value=True),
         "Maximum": BooleanVar(value=True),
-        "Módusz (Mode)": BooleanVar(value=True),  # Added mode for categorical data
-        "Gyakoriság (Value Counts)": BooleanVar(value=True),  # Added value counts
+        "Módusz (Mode)": BooleanVar(value=True),
+        "Gyakoriság (Value Counts)": BooleanVar(value=True),
     }
     for tool, var in stats_tools.items():
         Checkbutton(analysis_window, text=tool, variable=var).pack(anchor='w')
@@ -181,7 +182,7 @@ def select_visualization_options(adatok):
     # Create the Toplevel window
     visualization_window = Toplevel()
     visualization_window.title("Visualization Options")
-    visualization_window.geometry("600x700")  # Increased height
+    visualization_window.geometry("600x800")  # Increased height
 
     # Ensure window creation
     visualization_window.update_idletasks()
@@ -199,9 +200,10 @@ def select_visualization_options(adatok):
     Label(visualization_window, text="Válassza ki a diagram típusát:").pack()
     visualization_types = {
         "Hisztogram (Numeric)": BooleanVar(value=True),
+        "Boxplot (Numeric)": BooleanVar(value=True),  # Added boxplot option
         "Oszlopdiagram (Categorical)": BooleanVar(value=True),
         "Kördiagram (Pie Chart - Categorical)": BooleanVar(value=True),
-        "Statisztikák Diagramja (Statistics Charts)": BooleanVar(value=False),  # Added option
+        "Statisztikák Diagramja (Statistics Charts)": BooleanVar(value=False),
     }
     for vis_type, var in visualization_types.items():
         Checkbutton(visualization_window, text=vis_type, variable=var).pack(anchor='w')
@@ -232,21 +234,40 @@ def perform_visualization(adatok, column_vars, visualization_types):
     if visualization_types["Hisztogram (Numeric)"].get():
         numeric_data = data_to_visualize.select_dtypes(include=["number"])
         if not numeric_data.empty:
-            numeric_data.hist(bins=20, figsize=(10, 6))
-            plt.suptitle("Hisztogramok a numerikus oszlopokhoz")
-            plt.show()
+            for col in numeric_data.columns:
+                plt.figure(figsize=(10,6))
+                sns.histplot(numeric_data[col], kde=True)
+                plt.title(f"Hisztogram: {col}")
+                if 'mean' in analysis_results.get('numeric', {}) and col in analysis_results['numeric']['mean']:
+                    plt.axvline(analysis_results['numeric']['mean'][col], color='r', linestyle='dashed', linewidth=2, label='Átlag')
+                if 'median' in analysis_results.get('numeric', {}) and col in analysis_results['numeric']['median']:
+                    plt.axvline(analysis_results['numeric']['median'][col], color='g', linestyle='dotted', linewidth=2, label='Medián')
+                plt.legend()
+                plt.show()
         else:
             megjelenit_ablak("Figyelmeztetés", "Nincs numerikus adat a hisztogramokhoz.")
+
+    if visualization_types["Boxplot (Numeric)"].get():
+        numeric_data = data_to_visualize.select_dtypes(include=["number"])
+        if not numeric_data.empty:
+            plt.figure(figsize=(10,6))
+            sns.boxplot(data=numeric_data)
+            plt.title("Boxplot a numerikus oszlopokhoz")
+            plt.xticks(rotation=45)
+            plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "Nincs numerikus adat a boxplotokhoz.")
 
     if visualization_types["Oszlopdiagram (Categorical)"].get():
         categorical_data = data_to_visualize.select_dtypes(include=["object", "category"])
         if not categorical_data.empty:
             for col in categorical_data.columns:
                 if categorical_data[col].nunique() < 20:  # Limit to manageable categories
-                    categorical_data[col].value_counts().plot(kind="bar", figsize=(10, 6))
+                    plt.figure(figsize=(10,6))
+                    sns.countplot(y=col, data=categorical_data, order=categorical_data[col].value_counts().index)
                     plt.title(f"Oszlopdiagram: {col}")
-                    plt.xlabel(col)
-                    plt.ylabel("Előfordulások száma")
+                    plt.xlabel("Előfordulások száma")
+                    plt.ylabel(col)
                     plt.show()
                 else:
                     megjelenit_ablak("Figyelmeztetés", f"Túl sok kategória az oszlopdiagramhoz: {col}")
@@ -258,7 +279,8 @@ def perform_visualization(adatok, column_vars, visualization_types):
         if not categorical_data.empty:
             for col in categorical_data.columns:
                 if categorical_data[col].nunique() < 10:  # Limit to manageable categories
-                    categorical_data[col].value_counts().plot(kind="pie", figsize=(8, 8), autopct='%1.1f%%')
+                    plt.figure(figsize=(8,8))
+                    categorical_data[col].value_counts().plot(kind="pie", autopct='%1.1f%%')
                     plt.title(f"Kördiagram: {col}")
                     plt.ylabel('')  # Hide y-label for pie chart
                     plt.show()
@@ -272,8 +294,10 @@ def perform_visualization(adatok, column_vars, visualization_types):
         if 'numeric' in analysis_results:
             numeric_stats = analysis_results['numeric']
             for stat_name, stat_values in numeric_stats.items():
-                stat_values.plot(kind='bar', title=f"Numerikus {stat_name.capitalize()}", figsize=(10,6))
+                plt.figure(figsize=(10,6))
+                stat_values.plot(kind='bar', title=f"Numerikus {stat_name.capitalize()}")
                 plt.ylabel(stat_name.capitalize())
+                plt.xticks(rotation=45)
                 plt.show()
         else:
             megjelenit_ablak("Figyelmeztetés", "Nincs numerikus statisztikai adat a megjelenítéshez.")
@@ -283,9 +307,11 @@ def perform_visualization(adatok, column_vars, visualization_types):
             value_counts_dict = analysis_results['categorical']['value_counts']
             for col, counts in value_counts_dict.items():
                 if counts.nunique() < 20:
-                    counts.plot(kind='bar', title=f"Gyakoriság - {col}", figsize=(10,6))
+                    plt.figure(figsize=(10,6))
+                    counts.plot(kind='bar', title=f"Gyakoriság - {col}")
                     plt.xlabel(col)
                     plt.ylabel("Előfordulások száma")
+                    plt.xticks(rotation=45)
                     plt.show()
                 else:
                     megjelenit_ablak("Figyelmeztetés", f"Túl sok kategória a diagramhoz: {col}")
