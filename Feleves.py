@@ -6,14 +6,19 @@ from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button
 # Load and clean data dynamically
 def adat_beolvasas():
     """
-    Fájl kiválasztása egy párbeszédablakból és adat beolvasása CSV vagy Excel fájlformátumból.
+    Fájl kiválasztása egy párbeszédablakból és adat beolvasása CSV, Excel vagy TXT fájlformátumból.
     :return: Pandas DataFrame az adatokkal
     """
     root = Tk()
     root.withdraw()
     fajl_nev = filedialog.askopenfilename(
         title="Válassz egy fájlt",
-        filetypes=[("Minden adatfájl", "*.csv;*.xlsx;*.xls"), ("CSV fájlok", "*.csv"), ("Excel fájlok", "*.xlsx;*.xls")]
+        filetypes=[
+            ("Minden adatfájl", "*.csv;*.xlsx;*.xls;*.txt"),
+            ("CSV fájlok", "*.csv"),
+            ("Excel fájlok", "*.xlsx;*.xls"),
+            ("TXT fájlok", "*.txt"),
+        ],
     )
     if not fajl_nev:
         return None
@@ -21,15 +26,19 @@ def adat_beolvasas():
     try:
         # Determine file type and load data
         if fajl_nev.endswith(".csv"):
-            # Load CSV and infer header row
             adat = pd.read_csv(fajl_nev, header=None)
         elif fajl_nev.endswith((".xls", ".xlsx")):
-            # Check for Excel dependencies
             try:
                 adat = pd.read_excel(fajl_nev, header=None, engine="openpyxl" if fajl_nev.endswith(".xlsx") else "xlrd")
             except ImportError as e:
                 megjelenit_ablak("Hiba", f"A szükséges könyvtárak hiányoznak: {e}")
                 return None
+        elif fajl_nev.endswith(".txt"):
+            # Infer delimiter for TXT files
+            with open(fajl_nev, 'r') as file:
+                first_line = file.readline()
+                delimiter = detect_delimiter(first_line)
+                adat = pd.read_csv(fajl_nev, header=None, delimiter=delimiter)
         else:
             raise ValueError("Nem támogatott fájlformátum!")
 
@@ -49,9 +58,14 @@ def adat_beolvasas():
         return None
 
 
-    except Exception as e:
-        megjelenit_ablak("Hiba", f"Hiba történt az állomány beolvasása során: {e}")
-        return None
+# Detect delimiter for TXT files
+def detect_delimiter(first_line):
+    """
+    Detect the delimiter used in the TXT file based on the first line.
+    """
+    delimiters = [',', '\t', ';', '|']
+    delimiter_count = {delimiter: first_line.count(delimiter) for delimiter in delimiters}
+    return max(delimiter_count, key=delimiter_count.get)
 
 
 # Display results in a tkinter window
