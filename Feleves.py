@@ -2,15 +2,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton, BooleanVar, Label, IntVar
 
-
 # Load and clean data dynamically
 def adat_beolvasas():
     """
     Fájl kiválasztása egy párbeszédablakból és adat beolvasása CSV, Excel vagy TXT fájlformátumból.
     :return: Pandas DataFrame az adatokkal
     """
-    root = Tk()
-    root.withdraw()
+    # root = Tk()
+    # root.withdraw()
     fajl_nev = filedialog.askopenfilename(
         title="Válassz egy fájlt",
         filetypes=[
@@ -88,12 +87,10 @@ def select_analysis_options(adatok):
     Button(
         analysis_window,
         text="Tovább a vizualizációhoz",
-        command=lambda: [analysis_window.destroy(), select_visualization_options(adatok)],
+        command=lambda: [select_visualization_options(adatok), analysis_window.destroy()],  # Changed order
     ).pack()
 
     print("Analysis Options Window Created.")
-
-
 
 
 # Perform the selected analysis
@@ -121,8 +118,8 @@ def perform_analysis(adatok, column_vars, stats_tools, analysis_window):
             results += f"Maximum:\n{numeric_data.max()}\n\n"
         megjelenit_ablak("Numerikus Elemzés", results)
 
-    # Close analysis options window
-    analysis_window.destroy()
+    # Do not destroy the window here to keep the application running
+    # analysis_window.destroy()
 
 
 # Display results in a tkinter window
@@ -143,7 +140,6 @@ def megjelenit_ablak(cim, szoveg):
     szovegdoboz.config(yscrollcommand=scrollbar.set)
 
     Button(ablak, text="Bezárás", command=ablak.destroy).pack()
-
 
 
 def select_visualization_options(adatok):
@@ -192,8 +188,6 @@ def select_visualization_options(adatok):
     print("Visualization Options Window Ready.")  # Debugging log
 
 
-
-
 def perform_visualization(adatok, column_vars, visualization_types, visualization_window):
     """
     Perform visualization based on selected options.
@@ -220,20 +214,17 @@ def perform_visualization(adatok, column_vars, visualization_types, visualizatio
                 plt.ylabel("Előfordulások száma")
                 plt.show()
 
-    # Close visualization options window
-    visualization_window.destroy()
+    # Do not destroy the window here to keep the application running
+    # visualization_window.destroy()
 
 
 # Main program
 if __name__ == "__main__":
     root = Tk()
-    root.withdraw()  # Hide root window
+    # root.withdraw()  # Hide root window
 
     adatok = adat_beolvasas()
     if adatok is not None:
         select_analysis_options(adatok)  # Start with analysis options
 
     root.mainloop()  # Single mainloop
-
-
-
