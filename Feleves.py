@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns  # Added seaborn for enhanced visualizations
-from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton, BooleanVar, Label
+from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton, BooleanVar, Label, Listbox, MULTIPLE, END
 
 # Global variable to store analysis results
 analysis_results = {}
@@ -182,13 +182,13 @@ def select_visualization_options(adatok):
     # Create the Toplevel window
     visualization_window = Toplevel()
     visualization_window.title("Visualization Options")
-    visualization_window.geometry("600x800")  # Increased height
+    visualization_window.geometry("800x800")  # Increased height and width
 
     # Ensure window creation
     visualization_window.update_idletasks()
     print("Visualization Options Window Created.")  # Debugging log
 
-    # Column selection
+    # Column selection for individual plots
     Label(visualization_window, text="Válassza ki a megjelenítendő oszlopokat:").pack()
     column_vars = {}
     for col in adatok.columns:
@@ -196,11 +196,11 @@ def select_visualization_options(adatok):
         column_vars[col] = var
         Checkbutton(visualization_window, text=col, variable=var).pack(anchor='w')
 
-    # Visualization type selection
+    # Visualization type selection for individual plots
     Label(visualization_window, text="Válassza ki a diagram típusát:").pack()
     visualization_types = {
         "Hisztogram (Numeric)": BooleanVar(value=True),
-        "Boxplot (Numeric)": BooleanVar(value=True),  # Added boxplot option
+        "Boxplot (Numeric)": BooleanVar(value=True),
         "Oszlopdiagram (Categorical)": BooleanVar(value=True),
         "Kördiagram (Pie Chart - Categorical)": BooleanVar(value=True),
         "Statisztikák Diagramja (Statistics Charts)": BooleanVar(value=False),
@@ -208,11 +208,33 @@ def select_visualization_options(adatok):
     for vis_type, var in visualization_types.items():
         Checkbutton(visualization_window, text=vis_type, variable=var).pack(anchor='w')
 
+    # Section for combined column visualizations
+    Label(visualization_window, text="--- Kombinált Oszlop Vizualizációk ---").pack(pady=10)
+
+    # Column selection for combined plots
+    Label(visualization_window, text="Válassza ki a kombinált oszlopokat:").pack()
+    combined_columns_listbox = Listbox(visualization_window, selectmode=MULTIPLE, exportselection=0)
+    for col in adatok.columns:
+        combined_columns_listbox.insert(END, col)
+    combined_columns_listbox.pack()
+
+    # Visualization types for combined plots
+    Label(visualization_window, text="Válassza ki a kombinált diagram típusát:").pack()
+    combined_visualization_types = {
+        "Szórásdiagram (Scatter Plot)": BooleanVar(value=False),
+        "Páros Diagram (Pair Plot)": BooleanVar(value=False),
+        "Hőtérkép (Heatmap)": BooleanVar(value=False),
+        "Boxplot Kategória szerint": BooleanVar(value=False),
+        "Csoportosított Oszlopdiagram": BooleanVar(value=False),
+    }
+    for vis_type, var in combined_visualization_types.items():
+        Checkbutton(visualization_window, text=vis_type, variable=var).pack(anchor='w')
+
     # Confirm button
     Button(
         visualization_window,
         text="Megjelenítés indítása",
-        command=lambda: perform_visualization(adatok, column_vars, visualization_types),
+        command=lambda: perform_visualization(adatok, column_vars, visualization_types, combined_columns_listbox, combined_visualization_types),
     ).pack()
 
     # Close button
@@ -221,7 +243,7 @@ def select_visualization_options(adatok):
     # Ensure the window is displayed and responsive
     print("Visualization Options Window Ready.")  # Debugging log
 
-def perform_visualization(adatok, column_vars, visualization_types):
+def perform_visualization(adatok, column_vars, visualization_types, combined_columns_listbox, combined_visualization_types):
     """
     Perform visualization based on selected options.
     """
@@ -230,7 +252,7 @@ def perform_visualization(adatok, column_vars, visualization_types):
     selected_columns = [col for col, var in column_vars.items() if var.get()]
     data_to_visualize = adatok[selected_columns]
 
-    # Generate visualizations
+    # Generate individual visualizations
     if visualization_types["Hisztogram (Numeric)"].get():
         numeric_data = data_to_visualize.select_dtypes(include=["number"])
         if not numeric_data.empty:
@@ -317,6 +339,80 @@ def perform_visualization(adatok, column_vars, visualization_types):
                     megjelenit_ablak("Figyelmeztetés", f"Túl sok kategória a diagramhoz: {col}")
         else:
             megjelenit_ablak("Figyelmeztetés", "Nincs kategorikus statisztikai adat a megjelenítéshez.")
+
+    # Generate combined visualizations
+    selected_combined_indices = combined_columns_listbox.curselection()
+    selected_combined_columns = [combined_columns_listbox.get(i) for i in selected_combined_indices]
+    combined_data = adatok[selected_combined_columns]
+
+    if not selected_combined_columns:
+        megjelenit_ablak("Figyelmeztetés", "Nem választott ki kombinált oszlopokat.")
+        return
+
+    if combined_visualization_types["Szórásdiagram (Scatter Plot)"].get():
+        numeric_columns = combined_data.select_dtypes(include=["number"]).columns
+        if len(numeric_columns) >= 2:
+            x_col = numeric_columns[0]
+            y_col = numeric_columns[1]
+            plt.figure(figsize=(10,6))
+            sns.scatterplot(x=combined_data[x_col], y=combined_data[y_col])
+            plt.title(f"Szórásdiagram: {x_col} vs {y_col}")
+            plt.xlabel(x_col)
+            plt.ylabel(y_col)
+            plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "A szórásdiagramhoz legalább két numerikus oszlop szükséges.")
+
+    if combined_visualization_types["Páros Diagram (Pair Plot)"].get():
+        numeric_data = combined_data.select_dtypes(include=["number"])
+        if len(numeric_data.columns) >= 2:
+            sns.pairplot(numeric_data)
+            plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "A páros diagramhoz legalább két numerikus oszlop szükséges.")
+
+    if combined_visualization_types["Hőtérkép (Heatmap)"].get():
+        numeric_data = combined_data.select_dtypes(include=["number"])
+        if len(numeric_data.columns) >= 2:
+            plt.figure(figsize=(10,8))
+            sns.heatmap(numeric_data.corr(), annot=True, cmap='coolwarm')
+            plt.title("Korrelációs mátrix hőtérképe")
+            plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "A hőtérképhez legalább két numerikus oszlop szükséges.")
+
+    if combined_visualization_types["Boxplot Kategória szerint"].get():
+        categorical_columns = combined_data.select_dtypes(include=["object", "category"]).columns
+        numeric_columns = combined_data.select_dtypes(include=["number"]).columns
+        if not categorical_columns.empty and not numeric_columns.empty:
+            for num_col in numeric_columns:
+                for cat_col in categorical_columns:
+                    plt.figure(figsize=(10,6))
+                    sns.boxplot(x=combined_data[cat_col], y=combined_data[num_col])
+                    plt.title(f"Boxplot: {num_col} Kategória szerint {cat_col}")
+                    plt.xlabel(cat_col)
+                    plt.ylabel(num_col)
+                    plt.xticks(rotation=45)
+                    plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "A boxplot kategória szerint diagramhoz legalább egy numerikus és egy kategorikus oszlop szükséges.")
+
+    if combined_visualization_types["Csoportosított Oszlopdiagram"].get():
+        categorical_columns = combined_data.select_dtypes(include=["object", "category"]).columns
+        numeric_columns = combined_data.select_dtypes(include=["number"]).columns
+        if not categorical_columns.empty and not numeric_columns.empty:
+            for cat_col in categorical_columns:
+                for num_col in numeric_columns:
+                    grouped_data = combined_data.groupby(cat_col)[num_col].mean().reset_index()
+                    plt.figure(figsize=(10,6))
+                    sns.barplot(x=cat_col, y=num_col, data=grouped_data)
+                    plt.title(f"Csoportosított Oszlopdiagram: {num_col} átlagai {cat_col} szerint")
+                    plt.xlabel(cat_col)
+                    plt.ylabel(f"{num_col} Átlag")
+                    plt.xticks(rotation=45)
+                    plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "A csoportosított oszlopdiagramhoz legalább egy numerikus és egy kategorikus oszlop szükséges.")
 
 # Main program
 if __name__ == "__main__":
