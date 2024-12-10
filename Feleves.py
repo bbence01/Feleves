@@ -1,7 +1,13 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns  # Added seaborn for enhanced visualizations
-from tkinter import Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton, BooleanVar, Label, Listbox, MULTIPLE, END
+import seaborn as sns
+from tkinter import (
+    Tk, filedialog, Toplevel, Text, Scrollbar, Frame, Button, Checkbutton,
+    BooleanVar, Label, Listbox, MULTIPLE, END, BOTH, Canvas, LEFT, RIGHT, Y, VERTICAL,
+    LabelFrame  # Added LabelFrame to imports
+)
+
+# Global variable to store analysis results
 
 # Global variable to store analysis results
 analysis_results = {}
@@ -9,8 +15,7 @@ analysis_results = {}
 # Load and clean data dynamically
 def adat_beolvasas():
     """
-    Fájl kiválasztása egy párbeszédablakból és adat beolvasása CSV, Excel vagy TXT fájlformátumból.
-    :return: Pandas DataFrame az adatokkal
+    Load data from a selected file (CSV, Excel, or TXT).
     """
     fajl_nev = filedialog.askopenfilename(
         title="Válassz egy fájlt",
@@ -58,14 +63,32 @@ def select_analysis_options(adatok):
 
     # Column selection
     Label(analysis_window, text="Válassza ki az elemzendő oszlopokat:").pack()
+    column_frame = Frame(analysis_window)
+    column_frame.pack()
+
     column_vars = {}
     for col in adatok.columns:
         var = BooleanVar(value=True)
         column_vars[col] = var
-        Checkbutton(analysis_window, text=col, variable=var).pack(anchor='w')
+        Checkbutton(column_frame, text=col, variable=var).pack(anchor='w')
+
+    # Add Select All and Select None buttons for columns
+    def select_all_columns():
+        for var in column_vars.values():
+            var.set(True)
+
+    def select_none_columns():
+        for var in column_vars.values():
+            var.set(False)
+
+    Button(analysis_window, text="Mindet kijelöli", command=select_all_columns).pack(pady=5)
+    Button(analysis_window, text="Egyiket sem jelöli ki", command=select_none_columns).pack(pady=5)
 
     # Statistical tools selection
     Label(analysis_window, text="Válassza ki az alkalmazandó statisztikai eszközöket:").pack()
+    stats_frame = Frame(analysis_window)
+    stats_frame.pack()
+
     stats_tools = {
         "Átlag (Mean)": BooleanVar(value=True),
         "Medián (Median)": BooleanVar(value=True),
@@ -76,14 +99,14 @@ def select_analysis_options(adatok):
         "Gyakoriság (Value Counts)": BooleanVar(value=True),
     }
     for tool, var in stats_tools.items():
-        Checkbutton(analysis_window, text=tool, variable=var).pack(anchor='w')
+        Checkbutton(stats_frame, text=tool, variable=var).pack(anchor='w')
 
     # Confirm button
     Button(
         analysis_window,
         text="Elemzés indítása",
         command=lambda: perform_analysis(adatok, column_vars, stats_tools),
-    ).pack()
+    ).pack(pady=10)
 
     # Close button with graphical window callback
     Button(
@@ -173,6 +196,7 @@ def megjelenit_ablak(cim, szoveg):
 
     Button(ablak, text="Bezárás", command=ablak.destroy).pack()
 
+
 def select_visualization_options(adatok):
     """
     Creates a GUI for the user to choose data visualization options.
@@ -182,22 +206,73 @@ def select_visualization_options(adatok):
     # Create the Toplevel window
     visualization_window = Toplevel()
     visualization_window.title("Visualization Options")
-    visualization_window.geometry("800x800")  # Increased height and width
+    visualization_window.geometry("800x600")  # Adjusted size
+    visualization_window.resizable(True, True)  # Allow resizing
 
-    # Ensure window creation
-    visualization_window.update_idletasks()
-    print("Visualization Options Window Created.")  # Debugging log
+    # Create a main frame to hold all content
+    main_frame = Frame(visualization_window)
+    main_frame.pack(fill=BOTH, expand=1)
 
+    # Create a canvas to allow scrolling
+    canvas = Canvas(main_frame)
+    canvas.pack(side=LEFT, fill=BOTH, expand=1)
+
+    # Add a scrollbar to the canvas
+    scrollbar = Scrollbar(main_frame, orient=VERTICAL, command=canvas.yview)
+    scrollbar.pack(side=RIGHT, fill=Y)
+
+    # Configure the canvas
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+    # Create a frame inside the canvas
+    content_frame = Frame(canvas)
+    canvas.create_window((0, 0), window=content_frame, anchor="nw")
+
+    # Organize the content_frame using grid layout
+    # Create frames for individual and combined plots
+    individual_frame = LabelFrame(content_frame, text="Egyéni Diagramok")
+    combined_frame = LabelFrame(content_frame, text="Kombinált Diagramok")
+
+    # Place the frames side by side
+    individual_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+    combined_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+
+    # Configure grid weights to allow frames to expand
+    content_frame.grid_columnconfigure(0, weight=1)
+    content_frame.grid_columnconfigure(1, weight=1)
+
+    # Individual Plots Section
     # Column selection for individual plots
-    Label(visualization_window, text="Válassza ki a megjelenítendő oszlopokat:").pack()
+    Label(individual_frame, text="Válassza ki a megjelenítendő oszlopokat:").pack()
+    columns_frame = Frame(individual_frame)
+    columns_frame.pack()
+
     column_vars = {}
     for col in adatok.columns:
         var = BooleanVar(value=True)
         column_vars[col] = var
-        Checkbutton(visualization_window, text=col, variable=var).pack(anchor='w')
+        Checkbutton(columns_frame, text=col, variable=var).pack(anchor='w')
+
+    # Add Select All and Select None buttons for individual columns
+    def select_all_individual_columns():
+        for var in column_vars.values():
+            var.set(True)
+
+    def select_none_individual_columns():
+        for var in column_vars.values():
+            var.set(False)
+
+    buttons_frame_individual = Frame(individual_frame)
+    buttons_frame_individual.pack(pady=5)
+    Button(buttons_frame_individual, text="Mindet kijelöli", command=select_all_individual_columns).pack(side='left', padx=5)
+    Button(buttons_frame_individual, text="Egyiket sem jelöli ki", command=select_none_individual_columns).pack(side='left', padx=5)
 
     # Visualization type selection for individual plots
-    Label(visualization_window, text="Válassza ki a diagram típusát:").pack()
+    Label(individual_frame, text="Válassza ki a diagram típusát:").pack(pady=10)
+    vis_types_frame = Frame(individual_frame)
+    vis_types_frame.pack()
+
     visualization_types = {
         "Hisztogram (Numeric)": BooleanVar(value=True),
         "Boxplot (Numeric)": BooleanVar(value=True),
@@ -206,42 +281,69 @@ def select_visualization_options(adatok):
         "Statisztikák Diagramja (Statistics Charts)": BooleanVar(value=False),
     }
     for vis_type, var in visualization_types.items():
-        Checkbutton(visualization_window, text=vis_type, variable=var).pack(anchor='w')
+        Checkbutton(vis_types_frame, text=vis_type, variable=var).pack(anchor='w')
 
-    # Section for combined column visualizations
-    Label(visualization_window, text="--- Kombinált Oszlop Vizualizációk ---").pack(pady=10)
-
+    # Combined Plots Section
     # Column selection for combined plots
-    Label(visualization_window, text="Válassza ki a kombinált oszlopokat:").pack()
-    combined_columns_listbox = Listbox(visualization_window, selectmode=MULTIPLE, exportselection=0)
-    for col in adatok.columns:
+    Label(combined_frame, text="Válassza ki a kombinált oszlopokat:").pack()
+    combined_list_frame = Frame(combined_frame)
+    combined_list_frame.pack()
+
+    combined_columns_listbox = Listbox(combined_list_frame, selectmode=MULTIPLE, exportselection=0, height=10)
+    combined_columns_listbox.pack(side=LEFT, fill=BOTH, expand=True)
+    combined_scrollbar = Scrollbar(combined_list_frame, orient=VERTICAL)
+    combined_scrollbar.config(command=combined_columns_listbox.yview)
+    combined_scrollbar.pack(side=RIGHT, fill=Y)
+    combined_columns_listbox.config(yscrollcommand=combined_scrollbar.set)
+
+    for idx, col in enumerate(adatok.columns):
         combined_columns_listbox.insert(END, col)
-    combined_columns_listbox.pack()
+
+    # Add Select All and Select None buttons for combined columns
+    def select_all_combined_columns():
+        combined_columns_listbox.select_set(0, END)
+
+    def select_none_combined_columns():
+        combined_columns_listbox.select_clear(0, END)
+
+    buttons_frame_combined = Frame(combined_frame)
+    buttons_frame_combined.pack(pady=5)
+    Button(buttons_frame_combined, text="Mindet kijelöli", command=select_all_combined_columns).pack(side='left', padx=5)
+    Button(buttons_frame_combined, text="Egyiket sem jelöli ki", command=select_none_combined_columns).pack(side='left', padx=5)
 
     # Visualization types for combined plots
-    Label(visualization_window, text="Válassza ki a kombinált diagram típusát:").pack()
+    Label(combined_frame, text="Válassza ki a kombinált diagram típusát:").pack(pady=10)
+    combined_vis_types_frame = Frame(combined_frame)
+    combined_vis_types_frame.pack()
+
     combined_visualization_types = {
         "Szórásdiagram (Scatter Plot)": BooleanVar(value=False),
         "Páros Diagram (Pair Plot)": BooleanVar(value=False),
         "Hőtérkép (Heatmap)": BooleanVar(value=False),
         "Boxplot Kategória szerint": BooleanVar(value=False),
         "Csoportosított Oszlopdiagram": BooleanVar(value=False),
+        "Két Kategorikus Változó Diagramja": BooleanVar(value=False),  # New option
+
     }
     for vis_type, var in combined_visualization_types.items():
-        Checkbutton(visualization_window, text=vis_type, variable=var).pack(anchor='w')
+        Checkbutton(combined_vis_types_frame, text=vis_type, variable=var).pack(anchor='w')
 
-    # Confirm button
+    # Confirm and Close buttons
+    buttons_frame = Frame(content_frame)
+    buttons_frame.grid(row=1, column=0, columnspan=2, pady=10)
     Button(
-        visualization_window,
+        buttons_frame,
         text="Megjelenítés indítása",
-        command=lambda: perform_visualization(adatok, column_vars, visualization_types, combined_columns_listbox, combined_visualization_types),
-    ).pack()
-
-    # Close button
-    Button(visualization_window, text="Bezárás", command=visualization_window.destroy).pack()
+        command=lambda: perform_visualization(
+            adatok, column_vars, visualization_types,
+            combined_columns_listbox, combined_visualization_types
+        ),
+    ).pack(side='left', padx=5)
+    Button(buttons_frame, text="Bezárás", command=visualization_window.destroy).pack(side='left', padx=5)
 
     # Ensure the window is displayed and responsive
     print("Visualization Options Window Ready.")  # Debugging log
+
 
 def perform_visualization(adatok, column_vars, visualization_types, combined_columns_listbox, combined_visualization_types):
     """
@@ -414,10 +516,9 @@ def perform_visualization(adatok, column_vars, visualization_types, combined_col
         else:
             megjelenit_ablak("Figyelmeztetés", "A csoportosított oszlopdiagramhoz legalább egy numerikus és egy kategorikus oszlop szükséges.")
 
-# Main program
+# Main program (unchanged)
 if __name__ == "__main__":
     root = Tk()
-    # root.withdraw()  # You can hide the root window if desired
     root.title("Adat Analízis és Vizualizáció")
     root.geometry("200x100")  # Set size for the root window
 
@@ -425,7 +526,10 @@ if __name__ == "__main__":
     Button(
         root,
         text="Adatok Beolvasása",
-        command=lambda: [adatok := adat_beolvasas(), select_analysis_options(adatok) if adatok is not None else None],
+        command=lambda: [
+            adatok := adat_beolvasas(),
+            select_analysis_options(adatok) if adatok is not None else None
+        ],
     ).pack(pady=20)
 
     root.mainloop()  # Single mainloop
