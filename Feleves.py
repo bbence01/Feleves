@@ -203,7 +203,7 @@ def select_visualization_options(adatok):
     """
     print("Opening Visualization Options Window...")  # Debugging log
 
-    # Create the Toplevel window
+      # Create the Toplevel window
     visualization_window = Toplevel()
     visualization_window.title("Visualization Options")
     visualization_window.geometry("800x600")  # Adjusted size
@@ -322,8 +322,7 @@ def select_visualization_options(adatok):
         "Hőtérkép (Heatmap)": BooleanVar(value=False),
         "Boxplot Kategória szerint": BooleanVar(value=False),
         "Csoportosított Oszlopdiagram": BooleanVar(value=False),
-        "Két Kategorikus Változó Diagramja": BooleanVar(value=False),  # New option
-
+        "Két Kategorikus Változó Diagramja": BooleanVar(value=False),  # New option added
     }
     for vis_type, var in combined_visualization_types.items():
         Checkbutton(combined_vis_types_frame, text=vis_type, variable=var).pack(anchor='w')
@@ -515,6 +514,45 @@ def perform_visualization(adatok, column_vars, visualization_types, combined_col
                     plt.show()
         else:
             megjelenit_ablak("Figyelmeztetés", "A csoportosított oszlopdiagramhoz legalább egy numerikus és egy kategorikus oszlop szükséges.")
+
+    # New visualization for multiple categorical variables
+    if combined_visualization_types["Két Kategorikus Változó Diagramja"].get():
+        categorical_columns = combined_data.select_dtypes(include=["object", "category"]).columns
+        if len(categorical_columns) >= 2:
+            # Select the first two categorical columns
+            cat_col1 = categorical_columns[0]
+            cat_col2 = categorical_columns[1]
+
+            # Create a cross-tabulation (contingency table)
+            cross_tab = pd.crosstab(combined_data[cat_col1], combined_data[cat_col2])
+
+            # Heatmap for categorical variables
+            plt.figure(figsize=(10, 8))
+            sns.heatmap(cross_tab, annot=True, fmt="d", cmap='YlGnBu')
+            plt.title(f"Kategorikus Változók Hőtérképe: {cat_col1} vs {cat_col2}")
+            plt.xlabel(cat_col2)
+            plt.ylabel(cat_col1)
+            plt.show()
+
+            # Stacked Bar Chart
+            cross_tab.plot(kind='bar', stacked=True, figsize=(10, 6))
+            plt.title(f"Halmozott Oszlopdiagram: {cat_col1} és {cat_col2}")
+            plt.xlabel(cat_col1)
+            plt.ylabel("Előfordulások száma")
+            plt.xticks(rotation=45)
+            plt.legend(title=cat_col2)
+            plt.show()
+
+            # Grouped Bar Chart
+            cross_tab.plot(kind='bar', stacked=False, figsize=(10, 6))
+            plt.title(f"Csoportosított Oszlopdiagram: {cat_col1} és {cat_col2}")
+            plt.xlabel(cat_col1)
+            plt.ylabel("Előfordulások száma")
+            plt.xticks(rotation=45)
+            plt.legend(title=cat_col2)
+            plt.show()
+        else:
+            megjelenit_ablak("Figyelmeztetés", "A diagramhoz legalább két kategorikus oszlop szükséges.")
 
 # Main program (unchanged)
 if __name__ == "__main__":
