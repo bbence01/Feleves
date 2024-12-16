@@ -115,6 +115,11 @@ def select_analysis_options(adatok):
         command=lambda: [select_visualization_options(adatok), analysis_window.destroy()],
     ).pack()
 
+    analysis_window = Toplevel()
+    analysis_window.title("Elemzési Opcók")
+    Button(analysis_window, text="Halmozott Sávdiagram", command=lambda: perform_visualization(adatok, column_vars, {}, {}, {})).pack(pady=5)
+    Button(analysis_window, text="Optimalizált Hőtérkép", command=lambda: perform_visualization(adatok, column_vars, {}, {}, {})).pack(pady=5)
+
     print("Analysis Options Window Created.")
 
 # Perform the selected analysis
@@ -553,6 +558,30 @@ def perform_visualization(adatok, column_vars, visualization_types, combined_col
             plt.show()
         else:
             megjelenit_ablak("Figyelmeztetés", "A diagramhoz legalább két kategorikus oszlop szükséges.")
+
+    def stacked_bar_chart():
+        if data_to_visualize.empty:
+            megjelenit_ablak("Figyelmeztetés", "Nincs adat a diagramhoz.")
+            return
+
+        aggregated_data = data_to_visualize.groupby(selected_columns[1:]).size().reset_index(name='Count')
+        plt.figure(figsize=(12,8))
+        sns.barplot(data=aggregated_data, x=selected_columns[-1], y='Count', hue=selected_columns[0])
+        plt.title("Halmozott sávdiagram")
+        plt.xticks(rotation=45)
+        plt.legend(title=selected_columns[0])
+        plt.show()
+
+    def optimized_heatmap():
+        if data_to_visualize.empty:
+            megjelenit_ablak("Figyelmeztetés", "Nincs adat a hőtérképhez.")
+            return
+
+        pivot_table = data_to_visualize.pivot_table(index=selected_columns[0], columns=selected_columns[1], aggfunc='size', fill_value=0)
+        plt.figure(figsize=(12,8))
+        sns.heatmap(pivot_table, cmap='YlGnBu', annot=False, linewidths=0.5)
+        plt.title("Optimalizált Hőtérkép")
+        plt.show()
 
 # Main program (unchanged)
 if __name__ == "__main__":
